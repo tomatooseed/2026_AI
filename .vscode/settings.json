@@ -1,0 +1,5 @@
+{
+  "python.defaultInterpreterPath": "/Users/seorincho/opt/anaconda3/envs/myenv/bin/python",
+  "jupyter.kernels.filter": [],
+  "notebook.kernelProviderAssociations": []
+}

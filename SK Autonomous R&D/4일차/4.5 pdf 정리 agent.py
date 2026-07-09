@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -8,13 +9,14 @@ import pymupdf
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# ── 경로 ──────────────────────────────────────────
 BASE = Path(__file__).resolve().parent
-load_dotenv(BASE.parent / ".env")
+load_dotenv(BASE.parent.parent / ".env")
+
 DOC_LIBRARY = BASE / "samples" / "pdf_samples"
 CATALOG_DIR = DOC_LIBRARY / "_catalog"
+SAMPLES_DIR = BASE / "samples"
 
-client = OpenAI()
+client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
 INDEX_CACHE: dict[str, list[dict]] = {}
 
 
@@ -47,9 +49,22 @@ def search_chunks(query: str, chunks: list[dict], top_k: int = 3) -> list[dict]:
     return [{**it, "score": s} for s, it in scored[:top_k]]
 
 
-def read_pdf_text(pdf_path: Path) -> str:
-    doc = pymupdf.open(pdf_path)
-    return "\n".join(page.get_text() for page in doc)
+def read_document_text(pdf_name: str) -> str:
+    """PDF 본문을 읽습니다. 없으면 동일 stem의 .txt를 찾습니다."""
+    stem = Path(pdf_name).stem
+    candidates = [
+        DOC_LIBRARY / pdf_name,
+        DOC_LIBRARY / f"{stem}.txt",
+        SAMPLES_DIR / f"{stem}.txt",
+    ]
+    for path in candidates:
+        if not path.exists():
+            continue
+        if path.suffix.lower() == ".pdf":
+            doc = pymupdf.open(path)
+            return "\n".join(page.get_text() for page in doc)
+        return path.read_text(encoding="utf-8")
+    return ""
 
 
 def chunk_stem(pdf_name: str) -> str:
@@ -60,10 +75,9 @@ def chunk_stem(pdf_name: str) -> str:
 def build_pdf_index(pdf_name: str) -> list[dict]:
     if pdf_name in INDEX_CACHE:
         return INDEX_CACHE[pdf_name]
-    pdf_path = DOC_LIBRARY / pdf_name
-    if not pdf_path.exists():
+    text = read_document_text(pdf_name)
+    if not text.strip():
         return []
-    text = read_pdf_text(pdf_path)
     prefix = chunk_stem(pdf_name)
     index = [
         {
@@ -78,8 +92,13 @@ def build_pdf_index(pdf_name: str) -> list[dict]:
 
 
 def list_documents() -> str:
-    """pdf_samples 안 PDF 파일명 목록."""
-    names = sorted(p.name for p in DOC_LIBRARY.glob("*.pdf"))
+    """pdf_samples 문서함의 PDF 파일명 목록."""
+    index_path = CATALOG_DIR / "index.json"
+    if index_path.exists():
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+        names = [doc["pdf_name"] for doc in data["documents"]]
+    else:
+        names = sorted(p.name for p in DOC_LIBRARY.glob("*.pdf"))
     return json.dumps({"count": len(names), "pdf_files": names}, ensure_ascii=False)
 
 
@@ -92,9 +111,10 @@ def get_document_catalog() -> str:
         summary_path = CATALOG_DIR / doc["summary_file"]
         summary_text = summary_path.read_text(encoding="utf-8") if summary_path.exists() else ""
         one_line = ""
-        for i, line in enumerate(summary_text.splitlines()):
-            if "한 줄 요약" in line and i + 1 < len(summary_text.splitlines()):
-                one_line = summary_text.splitlines()[i + 1].strip()
+        lines = summary_text.splitlines()
+        for i, line in enumerate(lines):
+            if "한 줄 요약" in line and i + 1 < len(lines):
+                one_line = lines[i + 1].strip()
                 break
         entries.append({
             "pdf_name": doc["pdf_name"],
@@ -117,7 +137,6 @@ def search_in_document(pdf_name: str, query: str, top_k: int = 3) -> str:
         },
         ensure_ascii=False,
     )
-
 
 
 AGENT_TOOLS = [
@@ -167,7 +186,8 @@ AGENT_SYSTEM = """
 순서:
 1. get_document_catalog 로 문서 목록·한줄요약 확인
 2. 질문에 맞는 pdf_name 고른 뒤 search_in_document 호출
-3. 도구 결과에 없으면 추측하지 말 것
+3. 필요하면 여러 PDF를 검색할 수 있음
+4. 도구 결과에 없으면 추측하지 말 것
 
 답변: 한국어 bullet 3개 이내, 마지막 bullet 근거: [pdf_name] chunk_id
 """.strip()
@@ -208,7 +228,7 @@ DEMO = [
     "LLM autonomous agent 서베이 논문의 주제는?",
     "data2vec가 다루는 modality 세 가지는?",
     "2026년 1분기 SK하이닉스 영업이익은?",
-    "Vision Transformer embedding이 무슨 특징이 있지?",
+    "Vision Transformer class embedding 논문이 뭐 다루는지 한 줄로",
 ]
 
 if __name__ == "__main__":

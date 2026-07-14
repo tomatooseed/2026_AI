@@ -1,5 +1,22 @@
+# Environment variables
 .env
 .env.*
 !.env.example
-*.pt
-.venv/
+!.env.sample
+!.env.template
+*.env
+
+*.zip
+*.db
+*.pdf
+**/chroma_regulations/**
+**/chroma_store/**
+
+**/__pycache__/
+
+**/data/**
+
+*.csv
+**/models/**
+
+*/16.3 slack API 활용하기.ipynb

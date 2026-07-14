@@ -21,7 +21,7 @@ SLACK_BOT_TOKEN = os.getenv("MY_SLACK_TOKEN") or os.environ["SLACK_BOT_TOKEN"]
 SLACK_SIGNING_SECRET = os.getenv("MY_SLACK_SIGNING_SECRET") or os.environ["SLACK_SIGNING_SECRET"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
-SYSTEM_PROMPT = "너는 나의 제일 친한 친구야. 친절하게 답을 해줘"
+SYSTEM_PROMPT = "너는 나의 제일 친한 친구야. 친절하게 답을 해줘.대답은 3줄을 넘기지 마."
 # 채널(또는 스레드)별로 최근 이 개수만큼 human/ai 메시지를 기억
 MAX_HISTORY_MESSAGES = 20
 

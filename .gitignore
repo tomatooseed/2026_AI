@@ -5,10 +5,17 @@
 !.env.sample
 !.env.template
 *.env
+.venv/
+venv/
+*.venv
+.venv.*
+.DS_Store
+**/.DS_Store
 
 *.zip
 *.db
 *.pdf
+*.pt
 **/chroma_regulations/**
 **/chroma_store/**
 
@@ -19,4 +26,4 @@
 *.csv
 **/models/**
 
-*/16.3 slack API 활용하기.ipynb
+**/16.3 slack API 활용하기.ipynb
